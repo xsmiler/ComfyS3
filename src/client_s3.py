@@ -1,4 +1,5 @@
 import os
+import mimetypes
 import boto3
 from .logger import logger
 from botocore.exceptions import NoCredentialsError
@@ -97,10 +98,24 @@ class S3:
             err = f"Failed to download file from S3: {e}"
             logger.error(err)
 
-    def upload_file(self, local_path, s3_path):
+    def upload_file(self, local_path, s3_path, auto_content_type=True):
         try:
             bucket = self.s3_client.Bucket(self.bucket_name)
-            bucket.upload_file(local_path, s3_path)
+            
+            # Prepare extra args for content type
+            extra_args = {}
+            if auto_content_type:
+                # Guess the content type based on file extension
+                content_type, _ = mimetypes.guess_type(local_path)
+                if content_type:
+                    extra_args['ContentType'] = content_type
+            
+            # Upload file with content type if specified
+            if extra_args:
+                bucket.upload_file(local_path, s3_path, ExtraArgs=extra_args)
+            else:
+                bucket.upload_file(local_path, s3_path)
+                
             return s3_path
         except NoCredentialsError:
             err = "Credentials not available or not valid."
